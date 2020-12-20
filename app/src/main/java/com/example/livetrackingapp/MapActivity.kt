@@ -2,14 +2,18 @@ package com.example.livetrackingapp
 
 import android.Manifest.permission.ACCESS_COARSE_LOCATION
 import android.Manifest.permission.ACCESS_FINE_LOCATION
-import android.content.DialogInterface
 import android.content.pm.PackageManager
+import android.location.Location
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
@@ -18,6 +22,8 @@ import com.google.android.gms.maps.model.MarkerOptions
 
 
 class MapActivity : AppCompatActivity(), OnMapReadyCallback {
+    private lateinit var map: GoogleMap
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_map)
@@ -75,12 +81,62 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
 
     }
 
-    override fun onMapReady(googleMap: GoogleMap?) {
-        googleMap?.addMarker(
-            MarkerOptions()
-                .position(LatLng(0.0, 0.0))
-                .title("Marker")
+    private fun getCurrentLocation() {
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+                this,
+                ACCESS_COARSE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions()
+        } else {
+            var location = fusedLocationClient.lastLocation
+            location.addOnCompleteListener {
+                if (it.isSuccessful) {
+                    Log.d(Companion.TAG, "onComplete: found location!")
+                    val currentLocation =
+                        it.result as Location
+
+                    moveCamera(
+                        LatLng(currentLocation.latitude, currentLocation.longitude),
+                        DEFAULT_ZOOM
+                    )
+                }
+            }
+        }
+
+    }
+
+    private fun moveCamera(latLng: LatLng, zoom: Float) {
+        Log.d(
+            Companion.TAG,
+            "moveCamera: moving the camera to: lat: " + latLng.latitude + ", lng: " + latLng.longitude
         )
+        map.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, zoom))
+    }
+
+    override fun onMapReady(googleMap: GoogleMap?) {
+
+        if (googleMap != null) {
+            map = googleMap
+        }
+
+
+        getCurrentLocation()
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+                this,
+                ACCESS_COARSE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+        map.isMyLocationEnabled = true
     }
 
     override fun onRequestPermissionsResult(
@@ -100,5 +156,8 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
 
     companion object {
         private const val PERMISSION_REQUEST_CODE = 200
+        private const val TAG = "MapActivity"
+        private const val DEFAULT_ZOOM = 15f
+
     }
 }
