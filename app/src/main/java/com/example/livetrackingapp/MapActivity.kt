@@ -3,14 +3,19 @@ package com.example.livetrackingapp
 import android.Manifest.permission.ACCESS_COARSE_LOCATION
 import android.Manifest.permission.ACCESS_FINE_LOCATION
 import android.content.pm.PackageManager
+import android.location.Address
+import android.location.Geocoder
 import android.location.Location
 import android.os.Bundle
 import android.util.Log
+import android.view.KeyEvent
+import android.view.inputmethod.EditorInfo
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.example.livetrackingapp.databinding.ActivityMapBinding
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -19,14 +24,17 @@ import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
+import kotlinx.android.synthetic.main.activity_map.*
 
 
 class MapActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var map: GoogleMap
     private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private lateinit var viewBinding: ActivityMapBinding
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_map)
+        viewBinding = ActivityMapBinding.inflate(layoutInflater)
+        setContentView(viewBinding.root)
 
         checkLocationPermission()
     }
@@ -79,6 +87,30 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
             .findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
 
+        viewBinding.edtSearch.setOnEditorActionListener { v, actionId, event ->
+            if (actionId == EditorInfo.IME_ACTION_SEARCH
+                || actionId == EditorInfo.IME_ACTION_DONE
+                || event.action == KeyEvent.ACTION_DOWN
+                || event.action == KeyEvent.KEYCODE_ENTER
+            ) {
+                geoLocate()
+            }
+
+            return@setOnEditorActionListener false
+        }
+    }
+
+    private fun geoLocate() {
+        val geocoder = Geocoder(this)
+        var addressList = ArrayList<Address>()
+        addressList =
+            geocoder.getFromLocationName(edt_search.text.toString(), 1) as ArrayList<Address>
+
+        if (addressList.isNotEmpty()) {
+            val address = addressList[0]
+            Log.d(TAG, "geoLocate:${address}")
+            moveCamera(LatLng(address.latitude, address.longitude), DEFAULT_ZOOM,address.locality)
+        }
     }
 
     private fun getCurrentLocation() {
@@ -93,7 +125,7 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
         ) {
             requestPermissions()
         } else {
-            var location = fusedLocationClient.lastLocation
+            val location = fusedLocationClient.lastLocation
             location.addOnCompleteListener {
                 if (it.isSuccessful) {
                     Log.d(Companion.TAG, "onComplete: found location!")
@@ -102,7 +134,7 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
 
                     moveCamera(
                         LatLng(currentLocation.latitude, currentLocation.longitude),
-                        DEFAULT_ZOOM
+                        DEFAULT_ZOOM,"My Location"
                     )
                 }
             }
@@ -110,12 +142,15 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
 
     }
 
-    private fun moveCamera(latLng: LatLng, zoom: Float) {
+    private fun moveCamera(latLng: LatLng, zoom: Float, title: String) {
         Log.d(
             Companion.TAG,
             "moveCamera: moving the camera to: lat: " + latLng.latitude + ", lng: " + latLng.longitude
         )
         map.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, zoom))
+
+        val markerOptions = MarkerOptions().position(latLng).title(title)
+        map.addMarker(markerOptions)
     }
 
     override fun onMapReady(googleMap: GoogleMap?) {
@@ -123,7 +158,6 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
         if (googleMap != null) {
             map = googleMap
         }
-
 
         getCurrentLocation()
         if (ActivityCompat.checkSelfPermission(
