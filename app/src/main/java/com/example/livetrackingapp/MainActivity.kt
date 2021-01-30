@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.example.livetrackingapp.databinding.ActivityMainBinding
+import com.example.livetrackingapp.model.UserModel
 import com.example.livetrackingapp.utils.UserSharedPreference
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -29,6 +30,7 @@ class MainActivity : AppCompatActivity() {
                     .show()
             }
         }
+
         viewBinding.btnRegister.setOnClickListener {
             val userModel = UserModel(
                 viewBinding.name.text.toString(),

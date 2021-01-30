@@ -16,6 +16,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.example.livetrackingapp.databinding.ActivityMapBinding
+import com.example.livetrackingapp.model.UserLocation
+import com.example.livetrackingapp.utils.UserSharedPreference
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -24,6 +26,8 @@ import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.GeoPoint
 import kotlinx.android.synthetic.main.activity_map.*
 
 
@@ -109,7 +113,7 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
         if (addressList.isNotEmpty()) {
             val address = addressList[0]
             Log.d(TAG, "geoLocate:${address}")
-            moveCamera(LatLng(address.latitude, address.longitude), DEFAULT_ZOOM,address.locality)
+            moveCamera(LatLng(address.latitude, address.longitude), DEFAULT_ZOOM, address.locality)
         }
     }
 
@@ -134,12 +138,30 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
 
                     moveCamera(
                         LatLng(currentLocation.latitude, currentLocation.longitude),
-                        DEFAULT_ZOOM,"My Location"
+                        DEFAULT_ZOOM, "My Location"
                     )
+
+                    saveUserLocation(currentLocation)
                 }
             }
         }
 
+    }
+
+    private fun saveUserLocation(currentLocation: Location) {
+        val userLocation = UserLocation(
+            GeoPoint(currentLocation.latitude, currentLocation.longitude),
+            UserSharedPreference.instance?.getUser(this),
+            null
+        )
+        FirebaseFirestore.getInstance().collection("User")
+            .document(UserSharedPreference.instance?.getUser(this)?.email.toString())
+            .set(userLocation).addOnCompleteListener {
+                if (it.isSuccessful)
+
+                    Log.d(TAG, "saveUserLocation: Fetching Location...")
+                else Log.e(TAG, "saveUserLocation: ", it.exception)
+            }
     }
 
     private fun moveCamera(latLng: LatLng, zoom: Float, title: String) {
