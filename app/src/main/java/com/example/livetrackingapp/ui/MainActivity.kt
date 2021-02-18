@@ -1,4 +1,4 @@
-package com.example.livetrackingapp
+package com.example.livetrackingapp.ui
 
 import android.content.Intent
 import android.os.Bundle
@@ -9,7 +9,6 @@ import com.example.livetrackingapp.model.UserModel
 import com.example.livetrackingapp.utils.UserSharedPreference
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity() {
     private lateinit var viewBinding: ActivityMainBinding
@@ -18,6 +17,16 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         viewBinding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(viewBinding.root)
+
+        if (UserSharedPreference.instance?.isLoggedIn(this) == true) {
+            startActivity(Intent(this, MapActivity::class.java))
+            finish()
+        } else
+            initUI()
+    }
+
+    private fun initUI() {
+
         viewBinding.btnLogin.setOnClickListener {
             FirebaseAuth.getInstance().signInWithEmailAndPassword(
                 viewBinding.email.text.toString(),
@@ -65,6 +74,8 @@ class MainActivity : AppCompatActivity() {
                     startActivity(Intent(this, MapActivity::class.java))
                     finish()
                 }
+            }.addOnFailureListener {
+                Toast.makeText(this, "" + it.message, Toast.LENGTH_SHORT).show()
             }
     }
 

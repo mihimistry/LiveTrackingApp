@@ -1,7 +1,8 @@
-package com.example.livetrackingapp
+package com.example.livetrackingapp.ui
 
 import android.Manifest.permission.ACCESS_COARSE_LOCATION
 import android.Manifest.permission.ACCESS_FINE_LOCATION
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Address
 import android.location.Geocoder
@@ -15,8 +16,11 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.example.livetrackingapp.R
 import com.example.livetrackingapp.databinding.ActivityMapBinding
 import com.example.livetrackingapp.model.UserLocation
+import com.example.livetrackingapp.service.TrackerService
+import com.example.livetrackingapp.utils.Consts
 import com.example.livetrackingapp.utils.UserSharedPreference
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
@@ -30,7 +34,6 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.GeoPoint
 import kotlinx.android.synthetic.main.activity_map.*
 
-
 class MapActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var map: GoogleMap
     private lateinit var fusedLocationClient: FusedLocationProviderClient
@@ -39,7 +42,6 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
         super.onCreate(savedInstanceState)
         viewBinding = ActivityMapBinding.inflate(layoutInflater)
         setContentView(viewBinding.root)
-
         checkLocationPermission()
     }
 
@@ -72,7 +74,6 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
                 arrayOf(ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION),
                 PERMISSION_REQUEST_CODE
             )
-
     }
 
     private fun isPermissionGranted(): Boolean {
@@ -91,7 +92,9 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
             .findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
 
-        viewBinding.edtSearch.setOnEditorActionListener { v, actionId, event ->
+       // sendCommandToService(Consts.ACTION_START_OR_RESUME_SERVICE)
+
+        viewBinding.edtSearch.setOnEditorActionListener { _, actionId, event ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH
                 || actionId == EditorInfo.IME_ACTION_DONE
                 || event.action == KeyEvent.ACTION_DOWN
@@ -99,9 +102,25 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
             ) {
                 geoLocate()
             }
-
             return@setOnEditorActionListener false
         }
+
+
+        viewBinding.btnStart.setOnClickListener {
+            startService(Intent(applicationContext,TrackerService::class.java).setAction(Consts.ACTION_START_OR_RESUME_SERVICE))
+            Toast.makeText(this, "Location Service Started", Toast.LENGTH_SHORT).show()
+        }
+
+        viewBinding.btnStop.setOnClickListener {
+
+            startService(Intent(applicationContext,TrackerService::class.java).setAction(Consts.ACTION_STOP_SERVICE))
+            Toast.makeText(this, "Location Service Stopped", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+
+    private fun sendCommandToService(action: String) {
+        startService(Intent(this, TrackerService::class.java).setAction(action))
     }
 
     private fun geoLocate() {
@@ -113,7 +132,10 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
         if (addressList.isNotEmpty()) {
             val address = addressList[0]
             Log.d(TAG, "geoLocate:${address}")
-            moveCamera(LatLng(address.latitude, address.longitude), DEFAULT_ZOOM, address.locality)
+            moveCamera(
+                LatLng(address.latitude, address.longitude),
+                DEFAULT_ZOOM, address.locality
+            )
         }
     }
 
@@ -132,7 +154,7 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
             val location = fusedLocationClient.lastLocation
             location.addOnCompleteListener {
                 if (it.isSuccessful) {
-                    Log.d(Companion.TAG, "onComplete: found location!")
+                    Log.d(TAG, "onComplete: found location!")
                     val currentLocation =
                         it.result as Location
 
@@ -157,16 +179,17 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
         FirebaseFirestore.getInstance().collection("User")
             .document(UserSharedPreference.instance?.getUser(this)?.email.toString())
             .set(userLocation).addOnCompleteListener {
-                if (it.isSuccessful)
-
+                if (it.isSuccessful) {
+                    tv_geo_point.text =
+                        "lat:${currentLocation.latitude}\nlng:${currentLocation.longitude}"
                     Log.d(TAG, "saveUserLocation: Fetching Location...")
-                else Log.e(TAG, "saveUserLocation: ", it.exception)
+                } else Log.e(TAG, "saveUserLocation: ", it.exception)
             }
     }
 
     private fun moveCamera(latLng: LatLng, zoom: Float, title: String) {
         Log.d(
-            Companion.TAG,
+            TAG,
             "moveCamera: moving the camera to: lat: " + latLng.latitude + ", lng: " + latLng.longitude
         )
         map.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, zoom))
