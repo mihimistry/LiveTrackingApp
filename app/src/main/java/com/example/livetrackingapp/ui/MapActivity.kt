@@ -92,7 +92,7 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
             .findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
 
-       // sendCommandToService(Consts.ACTION_START_OR_RESUME_SERVICE)
+        // sendCommandToService(Consts.ACTION_START_OR_RESUME_SERVICE)
 
         viewBinding.edtSearch.setOnEditorActionListener { _, actionId, event ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH
@@ -107,13 +107,23 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
 
 
         viewBinding.btnStart.setOnClickListener {
-            startService(Intent(applicationContext,TrackerService::class.java).setAction(Consts.ACTION_START_OR_RESUME_SERVICE))
+            startService(
+                Intent(
+                    applicationContext,
+                    TrackerService::class.java
+                ).setAction(Consts.ACTION_START_OR_RESUME_SERVICE)
+            )
             Toast.makeText(this, "Location Service Started", Toast.LENGTH_SHORT).show()
         }
 
         viewBinding.btnStop.setOnClickListener {
 
-            startService(Intent(applicationContext,TrackerService::class.java).setAction(Consts.ACTION_STOP_SERVICE))
+            startService(
+                Intent(
+                    applicationContext,
+                    TrackerService::class.java
+                ).setAction(Consts.ACTION_STOP_SERVICE)
+            )
             Toast.makeText(this, "Location Service Stopped", Toast.LENGTH_SHORT).show()
         }
     }
