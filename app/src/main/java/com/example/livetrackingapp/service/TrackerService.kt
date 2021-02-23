@@ -210,7 +210,7 @@ class TrackerService : LifecycleService() {
 
     companion object {
         private const val TAG = "TrackerService"
-        private val isTracking = MutableLiveData<Boolean>()
-        private val pathPoints = MutableLiveData<polylines>()
+        val isTracking = MutableLiveData<Boolean>()
+        val pathPoints = MutableLiveData<polylines>()
     }
 }

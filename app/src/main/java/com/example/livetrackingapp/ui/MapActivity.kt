@@ -16,10 +16,14 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.MediatorLiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.Observer
 import com.example.livetrackingapp.R
 import com.example.livetrackingapp.databinding.ActivityMapBinding
 import com.example.livetrackingapp.model.UserLocation
 import com.example.livetrackingapp.service.TrackerService
+import com.example.livetrackingapp.service.polyline
 import com.example.livetrackingapp.utils.Consts
 import com.example.livetrackingapp.utils.UserSharedPreference
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -30,6 +34,7 @@ import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
+import com.google.android.gms.maps.model.PolylineOptions
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.GeoPoint
 import kotlinx.android.synthetic.main.activity_map.*
@@ -38,6 +43,7 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var map: GoogleMap
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var viewBinding: ActivityMapBinding
+    private var pathPoints = mutableListOf<polyline>()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         viewBinding = ActivityMapBinding.inflate(layoutInflater)
@@ -87,12 +93,14 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
         ) == PackageManager.PERMISSION_GRANTED
     }
 
+
     private fun initMap() {
         val mapFragment = supportFragmentManager
             .findFragmentById(R.id.map) as SupportMapFragment
         mapFragment.getMapAsync(this)
 
         // sendCommandToService(Consts.ACTION_START_OR_RESUME_SERVICE)
+
 
         viewBinding.edtSearch.setOnEditorActionListener { _, actionId, event ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH
@@ -132,6 +140,41 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
     private fun sendCommandToService(action: String) {
         startService(Intent(this, TrackerService::class.java).setAction(action))
     }
+
+    private fun addLatestPolyline() {
+        if (pathPoints.isNotEmpty() && pathPoints.last().size > 1) {
+            val preLastLatLng = pathPoints.last()[pathPoints.last().size - 2]
+            val lastLatLng = pathPoints.last().last()
+            val polylineOptions = PolylineOptions()
+                .color(getColor(R.color.blue))
+                .width(5f)
+                .add(preLastLatLng)
+                .add(lastLatLng)
+            map.addPolyline(polylineOptions)
+        }
+    }
+
+    private fun addAllPolylines() {
+        for (polyline in pathPoints) {
+            val polylineOptions = PolylineOptions()
+                .color(getColor(R.color.blue))
+                .width(5f)
+                .addAll(polyline)
+            map.addPolyline(polylineOptions)
+        }
+    }
+
+    private fun moveCameraToUser() {
+        if (pathPoints.isNotEmpty() && pathPoints.last().isNotEmpty()) {
+            map.animateCamera(
+                CameraUpdateFactory.newLatLngZoom(
+                    pathPoints.last().last(),
+                    DEFAULT_ZOOM
+                )
+            )
+        }
+    }
+
 
     private fun geoLocate() {
         val geocoder = Geocoder(this)
@@ -212,9 +255,15 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
 
         if (googleMap != null) {
             map = googleMap
+            // getCurrentLocation()
+            TrackerService.pathPoints.observe(this, Observer {
+                pathPoints = it
+                addLatestPolyline()
+                addAllPolylines()
+                moveCameraToUser()
+            })
         }
 
-        getCurrentLocation()
         if (ActivityCompat.checkSelfPermission(
                 this,
                 ACCESS_FINE_LOCATION
